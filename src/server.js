@@ -1,6 +1,7 @@
 // Import the 'express' package, which is the core of our server.
 // It's the only mandatory dependency for a functional Express server.
 const express = require('express');
+const cors = require('cors')
 
 // The 'dotenv' package is used to load environment variables from a .env file.
 // This is a best practice for managing configuration and sensitive data.
@@ -9,6 +10,9 @@ require('dotenv').config();
 
 // Create an instance of the Express application.
 const app = express();
+
+
+app.use(cors({ origin: 'http://127.0.0.1:5500' }));
 
 // Set the port for the server to listen on. We use the PORT environment variable
 // if it's set, otherwise we default to 3000.

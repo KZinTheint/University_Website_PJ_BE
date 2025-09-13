@@ -27,6 +27,8 @@ const registerController = {
       const data = req.body;
       const files = req.files;
 
+      console.log("in handler")
+
       // --- Basic Text Field Validation ---
       const requiredTextFields = [
         'first-name', 'last-name', 'dob', 'gender', 'nationality',
@@ -56,6 +58,8 @@ const registerController = {
         console.error('Validation Error: Invalid high school marks.');
         return res.status(400).json({ success: false, message: 'High school marks must be a number between 0 and 550.' });
       }
+
+      console.log(data.declaration, data['terms-and-conditions'])
 
       if (data.declaration !== 'on' || data['terms-and-conditions'] !== 'on') {
         console.error('Validation Error: Required declarations not accepted.');
@@ -109,6 +113,7 @@ const registerController = {
       }
 
       res.status(200).json(result);
+      console.log("resoinsed send")
     } catch (err) {
       console.error('An unexpected error occurred:', err);
       res.status(500).json({ success: false, message: 'Internal server error.' });
