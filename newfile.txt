@@ -1,0 +1,18 @@
+"first-name": "Wai", 
+"last-name": "Yan",
+"dob": "11/9/2000"
+"gender": "Male"
+"nationality": "Burmese",
+"national-id-prefix": "9",
+"national-id-number": "123455",
+"email": "Wai@gmail.com",
+"phone-number": "393423423",
+"permanent-address": "34323-abac",
+"city": "Mandalay", 
+"state-region": "Mandalay",
+"high-school-name": "Wai Yan",
+"high-school-marks": "133",
+"desired-program": "ECE",
+"emergency-contact-name": "Wai",
+"emergency-contact-phone": "2342342"
+"emergency-contact-relationship": "parent"
