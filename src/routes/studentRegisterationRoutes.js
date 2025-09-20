@@ -20,7 +20,9 @@ router.get('/', registerationController.getAllRegisetrationData)
   { name: 'medical-certificate', maxCount: 1 },
   { name: 'character-certificate', maxCount: 1 },
   { name: 'passport-photo', maxCount: 1 }
-]), registerationController.handleRegistration);
+]), registerationController.handleRegistration)
+  .get('/file/:id/:fileName', registerationController.getFile)
+  .delete('/', registerationController.deleteRegistrationsController)
 
 // Export the router so it can be used by the main server file.
 module.exports = router;

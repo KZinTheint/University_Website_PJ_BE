@@ -7,6 +7,7 @@ const { supabaseClient } = require('../lib/supabase')
 const RegisterationService = {
 
   async getAllRegisetrationData() {
+    // 1. Get all registration data from the database
     const { data, error } = await supabaseClient.from("StudentRegisteration").select("*");
     if (error) {
       return {
@@ -15,12 +16,47 @@ const RegisterationService = {
       };
     }
 
+    // 2. Map over the data to fetch files for each registration
+
+    const registrationsWithFiles = await Promise.all(
+      data.map(async (registration) => {
+        const uuidFolderName = registration.id;
+
+        if (uuidFolderName) {
+          const { data: fileList, error: listError } = await supabaseClient
+            .storage
+            .from("student-documents")
+            .list(uuidFolderName);
+
+          if (listError) {
+            console.error(`Error listing files for folder ${uuidFolderName}:`, listError);
+            return { ...registration, files: [] };
+          }
+
+          // Only include file names, no public URLs
+          const files = fileList.map(file => ({
+            name: file.name
+          }));
+
+          return {
+            ...registration,
+            files
+          };
+        }
+
+        return { ...registration, files: [] };
+      })
+    );
+
     return {
       success: true,
-      data
+      data: registrationsWithFiles
+    };
+    return {
+      success: true,
+      data: registrationsWithFiles
     };
   },
-
   // A private helper function for the service
   async uploadFile(bucket, folderId, file, fileName) {
     const filePath = `${folderId}/${fileName}`;
@@ -46,6 +82,8 @@ const RegisterationService = {
         .from('StudentRegisteration')
         .select('id')
         .eq('national_id_prefix', data['national-id-prefix'])
+        .eq('national_id_region', data['national-id-region'])
+        .eq('citizen_type', data['citizen-type'])
         .eq('national_id_number', data['national-id-number'])
         .limit(1);
 
@@ -70,6 +108,8 @@ const RegisterationService = {
             gender: data['gender'],
             nationality: data['nationality'],
             national_id_prefix: data['national-id-prefix'],
+            national_id_region: data['national-id-region'],
+            citizen_type: data['citizen-type'],
             national_id_number: data['national-id-number'],
             email: data['email'],
             phone_number: data['phone-number'],
@@ -124,7 +164,83 @@ const RegisterationService = {
       console.error('Unexpected error inserting registration:', err.message);
       return { success: false, message: 'An unexpected error occurred during registration.' };
     }
+  },
+
+
+  async deleteRegistrations(ids) {
+    try {
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return { success: false, message: 'No IDs provided for deletion.' };
+      }
+
+      // 1. Delete files for each registration ID
+      for (const id of ids) {
+        // List all files in the folder for this registration
+        const { data: fileList, error: listError } = await supabaseClient
+          .storage
+          .from('student-documents')
+          .list(String(id));
+
+        if (listError) {
+          console.error(`Error listing files for registration ${id}:`, listError);
+          // continue deleting other registrations even if listing fails
+        } else if (fileList && fileList.length > 0) {
+          const filePaths = fileList.map(f => `${id}/${f.name}`);
+          const { error: deleteFilesError } = await supabaseClient
+            .storage
+            .from('student-documents')
+            .remove(filePaths);
+
+          if (deleteFilesError) {
+            console.error(`Error deleting files for registration ${id}:`, deleteFilesError);
+          }
+        }
+      }
+
+      // 2. Delete registrations from the table
+      const { error: deleteRowsError } = await supabaseClient
+        .from('StudentRegisteration')
+        .delete()
+        .in('id', ids);
+
+      if (deleteRowsError) {
+        console.error('Error deleting registrations:', deleteRowsError);
+        return { success: false, message: deleteRowsError.message };
+      }
+
+      return { success: true, message: `Successfully deleted ${ids.length} registrations.` };
+
+    } catch (err) {
+      console.error('Unexpected error during deletion:', err.message);
+      return { success: false, message: 'An unexpected error occurred during deletion.' };
+    }
+  },
+
+  async getSignedUrls(registrationId, fileName, expiresIn = 60) {
+    try {
+      const filePath = `${registrationId}/${fileName}`;
+
+      console.log(filePath)
+      // Generate a signed URL for the specific file
+      const { data, error } = await supabaseClient
+        .storage
+        .from('student-documents')
+        .createSignedUrl(filePath, expiresIn); // expiresIn in seconds
+
+      console.log(data)
+
+      if (error) {
+        console.error(`Error generating signed URL for ${filePath}:`, error);
+        return { success: false, message: error.message };
+      }
+
+      return { success: true, file: { name: fileName, url: data.signedUrl } };
+
+    } catch (err) {
+      console.error('Unexpected error generating signed URL:', err.message);
+      return { success: false, message: 'An unexpected error occurred.' };
+    }
   }
 }
 
-module.exports = RegisterationService 
+module.exports = RegisterationService

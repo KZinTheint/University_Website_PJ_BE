@@ -32,7 +32,7 @@ const registerController = {
       // --- Basic Text Field Validation ---
       const requiredTextFields = [
         'first-name', 'last-name', 'dob', 'gender', 'nationality',
-        'national-id-prefix', 'national-id-number', 'email', 'phone-number',
+        'national-id-prefix', 'national-id-number', 'national-id-region', 'citizen-type',  'email', 'phone-number',
         'permanent-address', 'city', 'state-region', 'high-school-name',
         'high-school-marks', 'desired-program', 'emergency-contact-name',
         'emergency-contact-phone', 'emergency-contact-relationship'
@@ -118,6 +118,20 @@ const registerController = {
       console.error('An unexpected error occurred:', err);
       res.status(500).json({ success: false, message: 'Internal server error.' });
     }
+  },
+  
+  async deleteRegistrationsController(req, res) {
+    const { ids } = req.body; 
+
+    const result = await registerationService.deleteRegistrations(ids);
+    res.status(result.success ? 200 : 400).json(result);
+  },
+
+  async getFile(req, res) {
+    const registrationId = req.params.id;
+    const fileName  = req.params.fileName
+    const files = await registerationService.getSignedUrls(registrationId, fileName);
+    res.json(files);
   }
 }
 
