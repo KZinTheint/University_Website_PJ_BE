@@ -52,10 +52,6 @@ const RegisterationService = {
       success: true,
       data: registrationsWithFiles
     };
-    return {
-      success: true,
-      data: registrationsWithFiles
-    };
   },
   // A private helper function for the service
   async uploadFile(bucket, folderId, file, fileName) {

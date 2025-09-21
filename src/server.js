@@ -24,10 +24,12 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 const registerationRoutes = require('./routes/studentRegisterationRoutes')
+const eventRoutes = require('./routes/eventRoutes');
 
 // Example of a basic route for the root URL ('/').
 // When a GET request is made to the root, the server responds with a simple message.
 app.use('/registeration', registerationRoutes);
+app.use('/events', eventRoutes);
 
 
 // Start the server and listen for incoming requests on the specified port.
