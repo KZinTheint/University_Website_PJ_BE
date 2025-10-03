@@ -12,7 +12,7 @@ require('dotenv').config();
 const app = express();
 
 
-app.use(cors({ origin: ['http://127.0.0.1:5500', 'http://127.0.0.1:5501', 'http://127.0.0.1:8080'] }));
+app.use(cors({ origin: '*' }));
 
 // Set the port for the server to listen on. We use the PORT environment variable
 // if it's set, otherwise we default to 3000.

@@ -20,6 +20,7 @@ router.post('/', upload.fields([
 
 // PUT to update a news item
 router.put('/:id', upload.fields([
+    { name: 'cover_image', maxCount: 1 },
     { name: 'images', maxCount: 10 },
     { name: 'files', maxCount: 10 }
 ]), newsController.updateNews);

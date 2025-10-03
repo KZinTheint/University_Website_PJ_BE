@@ -65,8 +65,9 @@ const updateEvent = async (req, res) => {
 const deleteEvent = async (req, res) => {
     try {
         const { id } = req.params;
-        await eventService.deleteEvent(id);
-        res.status(204).send(); // No content
+        const result  = await eventService.deleteEvent(id);
+        console.log("result", result);
+        return res.status(200).json(result); 
     } catch (error) {
         res.status(500).json({ message: 'Error deleting event', error: error.message });
     }

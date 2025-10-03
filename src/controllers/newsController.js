@@ -52,7 +52,7 @@ const deleteNews = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await newsService.deleteNews(id);
-        if (result.success) return res.status(204).send();
+        if (result.success) return res.status(200).json({result});
         res.status(500).json({ message: result.message });
     } catch (error) {
         res.status(500).json({ message: 'Error deleting news', error: error.message });
