@@ -148,9 +148,7 @@ const RegisterationService = {
         }
       }
 
-      console.log("it is a success")
-
-      return { success: true, message: 'Registration and file uploads saved successfully' };
+      return { success: true, message: 'Registration and file uploads saved successfully'};
 
     } catch (err) {
       if (studentId) {

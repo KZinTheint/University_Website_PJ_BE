@@ -10,24 +10,52 @@ const newsService = {
 
     async getAllNews() {
         try {
-            const { data, error } = await supabaseClient.from(TABLE_NAME)
+            const { data, error } = await supabaseClient
+                .from(TABLE_NAME)
                 .select('*')
                 .order('created_at', { ascending: false });
 
             if (error) return { success: false, message: error.message };
 
-            const enriched = await Promise.all(data.map(async item => {
-                // List images
-                const { data: images } = await supabaseClient.storage.from('news').list(`${item.id}/images`);
-                const imageUrls = await Promise.all(images?.map(async (f) => await getPublicUrl('news', `${item.id}/images/${f.name}`)) || []);
+            const enriched = await Promise.all(
+                data.map(async item => {
+                    // List images
+                    const { data: images } = await supabaseClient
+                        .storage
+                        .from('news')
+                        .list(`${item.id}/images`);
 
-                // List files
-                const { data: files } = await supabaseClient.storage.from('news').list(`${item.id}/files`);
-                const fileUrls = await Promise.all(files?.map(async(f) => await getPublicUrl('news', `${item.id}/files/${f.name}`)) || []);
+                    const imageUrls = await Promise.all(
+                        images?.map(f => getPublicUrl('news', `${item.id}/images/${f.name}`)) || []
+                    );
 
-                console.log("image urls", imageUrls)
-                return { ...item, images: imageUrls, files: fileUrls };
-            }));
+                    const { data: cover_images } = await supabaseClient
+                        .storage
+                        .from('news')
+                        .list(`${item.id}/cover`);
+
+                    let cover_url = null
+                    if (cover_images.length > 0) {
+                        cover_url = await getPublicUrl('news', `${item.id}/cover/${cover_images[0].name}`);
+                    }
+
+                    // List files
+                    const { data: files } = await supabaseClient
+                        .storage
+                        .from('news')
+                        .list(`${item.id}/files`);
+                    const fileUrls = await Promise.all(
+                        files?.map(f => getPublicUrl('news', `${item.id}/files/${f.name}`)) || []
+                    );
+
+                    return {
+                        ...item,
+                        cover_url: cover_url,
+                        images: imageUrls,
+                        files: fileUrls
+                    };
+                })
+            );
 
             return { success: true, data: enriched };
         } catch (err) {
@@ -38,21 +66,64 @@ const newsService = {
 
     async getNewsById(id) {
         try {
-            const { data, error } = await supabaseClient.from(TABLE_NAME).select('*').eq('id', id).single();
+            const { data, error } = await supabaseClient
+                .from(TABLE_NAME)
+                .select('*')
+                .eq('id', id)
+                .single();
+
             if (error) return { success: false, message: error.message };
 
-            const { data: images } = await supabaseClient.storage.from('news').list(`${id}/images`);
-            const imageUrls = await Promise.all (images?.map(async (f) => await  getPublicUrl('news', `${id}/images/${f.name}`)) || [])
+            // List images
+            const { data: images } = await supabaseClient
+                .storage
+                .from('news')
+                .list(`${id}/images`);
 
-            const { data: files } = await supabaseClient.storage.from('news').list(`${id}/files`);
-            const fileUrls = await Promise.all (files?.map(async (f) => await getPublicUrl('news', `${id}/files/${f.name}`)) || [])
 
-            return { success: true, data: { ...data, images: imageUrls, files: fileUrls } };
+            const imageUrls = await Promise.all(
+                images?.map(f => getPublicUrl('news', `${id}/images/${f.name}`)) || []
+            );
+
+            const { data: cover_images } = await supabaseClient
+                .storage
+                .from('news')
+                .list(`${id}/cover`);
+
+            let cover_url = null
+            if (cover_images.length > 0) {
+                cover_url = await getPublicUrl('news', `${id}/cover/${cover_images[0].name}`);
+            }
+
+            // List files
+            const { data: files } = await supabaseClient
+                .storage
+                .from('news')
+                .list(`${id}/files`);
+            const filelist = await Promise.all(
+                files?.map(async (f) => { 
+                    return {
+                        filename: f.name,
+                        url: await getPublicUrl('news', `${id}/files/${f.name}`)
+                    }
+                }) || []
+            );
+
+            return {
+                success: true,
+                data: {
+                    ...data,
+                    cover_url: cover_url,
+                    images: imageUrls,
+                    files: filelist 
+                }
+            };
         } catch (err) {
             console.error(err);
             return { success: false, message: 'Unexpected error occurred' };
         }
     },
+
 
     async createNews(data, files) {
         try {
@@ -62,17 +133,38 @@ const newsService = {
             })) : null;
 
             const newsRow = { title: data.title, content };
-            const { data: newNews, error } = await supabaseClient.from(TABLE_NAME).insert([newsRow]).select().single();
+            const { data: newNews, error } = await supabaseClient
+                .from(TABLE_NAME)
+                .insert([newsRow])
+                .select()
+                .single();
+
             if (error) return { success: false, message: error.message };
 
             const newsId = newNews.id;
             const sanitize = name => name.replace(/[^a-zA-Z0-9-_.]/g, '_');
 
+            // ✅ Upload cover image
+            if (files.cover_image && files.cover_image[0]) {
+                const cover = files.cover_image[0];
+                const path = `${newsId}/cover/${sanitize(cover.originalname)}`;
+                await supabaseClient.storage
+                    .from('news')
+                    .upload(path, cover.buffer, { contentType: cover.mimetype, upsert: true });
+
+                // Save cover url in DB
+                const coverUrl = await getPublicUrl('news', path);
+                await supabaseClient.from(TABLE_NAME).update({ cover_url: coverUrl }).eq('id', newsId);
+                newNews.cover_url = coverUrl;
+            }
+
             // Upload images
             if (files.images) {
                 for (const img of files.images) {
                     const path = `${newsId}/images/${sanitize(img.originalname)}`;
-                    await supabaseClient.storage.from('news').upload(path, img.buffer, { contentType: img.mimetype, upsert: true });
+                    await supabaseClient.storage
+                        .from('news')
+                        .upload(path, img.buffer, { contentType: img.mimetype, upsert: true });
                 }
             }
 
@@ -80,7 +172,9 @@ const newsService = {
             if (files.files) {
                 for (const f of files.files) {
                     const path = `${newsId}/files/${sanitize(f.originalname)}`;
-                    await supabaseClient.storage.from('news').upload(path, f.buffer, { contentType: f.mimetype, upsert: true });
+                    await supabaseClient.storage
+                        .from('news')
+                        .upload(path, f.buffer, { contentType: f.mimetype, upsert: true });
                 }
             }
 
@@ -91,6 +185,7 @@ const newsService = {
         }
     },
 
+
     async updateNews(id, data, files) {
         try {
             const content = data.content ? JSON.parse(data.content).map(c => ({
@@ -99,16 +194,37 @@ const newsService = {
             })) : null;
 
             const updateData = { title: data.title, content };
-            const { data: updated, error } = await supabaseClient.from(TABLE_NAME).update(updateData).eq('id', id).select();
+            const { data: updated, error } = await supabaseClient
+                .from(TABLE_NAME)
+                .update(updateData)
+                .eq('id', id)
+                .select()
+                .single();
+
             if (error || !updated) return { success: false };
 
             const sanitize = name => name.replace(/[^a-zA-Z0-9-_.]/g, '_');
+
+            // ✅ Replace cover image
+            if (files.cover_image && files.cover_image[0]) {
+                const cover = files.cover_image[0];
+                const path = `${id}/cover/${sanitize(cover.originalname)}`;
+                await supabaseClient.storage
+                    .from('news')
+                    .upload(path, cover.buffer, { contentType: cover.mimetype, upsert: true });
+
+                const coverUrl = await getPublicUrl('news', path);
+                await supabaseClient.from(TABLE_NAME).update({ cover_url: coverUrl }).eq('id', id);
+                updated.cover_url = coverUrl;
+            }
 
             // Upload new images
             if (files.images) {
                 for (const img of files.images) {
                     const path = `${id}/images/${sanitize(img.originalname)}`;
-                    await supabaseClient.storage.from('news').upload(path, img.buffer, { contentType: img.mimetype, upsert: true });
+                    await supabaseClient.storage
+                        .from('news')
+                        .upload(path, img.buffer, { contentType: img.mimetype, upsert: true });
                 }
             }
 
@@ -116,7 +232,9 @@ const newsService = {
             if (files.files) {
                 for (const f of files.files) {
                     const path = `${id}/files/${sanitize(f.originalname)}`;
-                    await supabaseClient.storage.from('news').upload(path, f.buffer, { contentType: f.mimetype, upsert: true });
+                    await supabaseClient.storage
+                        .from('news')
+                        .upload(path, f.buffer, { contentType: f.mimetype, upsert: true });
                 }
             }
 
