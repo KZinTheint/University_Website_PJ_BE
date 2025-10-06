@@ -258,7 +258,7 @@ const newsService = {
             // Delete DB row
             await supabaseClient.from(TABLE_NAME).delete().eq('id', id);
 
-            return { success: true };
+            return { success: true, message: "News deleted successfully" };
         } catch (err) {
             console.error(err);
             return { success: false, message: 'Unexpected error occurred' };
