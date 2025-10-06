@@ -27,8 +27,6 @@ const registerController = {
       const data = req.body;
       const files = req.files;
 
-      console.log("in handler")
-
       // --- Basic Text Field Validation ---
       const requiredTextFields = [
         'first-name', 'last-name', 'dob', 'gender', 'nationality',
@@ -97,9 +95,6 @@ const registerController = {
       }
 
       // If all validation passes, log the data.
-      console.log('--- Successfully Received and Validated Registration Data ---');
-      console.log('Text Fields:', data);
-      console.log('\n--- Uploaded Files Information ---');
       for (const fileKey in files) {
         if (files[fileKey]) {
           console.log(`- ${fileKey}: Original Name: ${files[fileKey][0].originalname}, Size: ${files[fileKey][0].size} bytes`);
@@ -112,8 +107,9 @@ const registerController = {
         return res.status(400).json({ success: false, message: result.message });
       }
 
+      console.log("before respoinsed send", result)
+
       res.status(200).json(result);
-      console.log("resoinsed send")
     } catch (err) {
       console.error('An unexpected error occurred:', err);
       res.status(500).json({ success: false, message: 'Internal server error.' });
